@@ -10,6 +10,7 @@ void main() async {
   String? apiKey;
   try {
     apiKey = await rootBundle.loadString('assets/dgissdk.key');
+    debugPrint('API ключ загружен: ${apiKey.isNotEmpty ? "✓" : "✗"}');
   } catch (e) {
     debugPrint('Ошибка загрузки API ключа: $e');
   }
@@ -18,7 +19,11 @@ void main() async {
   dgis.Context? sdkContext;
   try {
     if (apiKey != null && apiKey.isNotEmpty) {
+      debugPrint('Инициализируем 2GIS SDK...');
       sdkContext = await dgis.DGis.initialize();
+      debugPrint('2GIS SDK инициализирован: ✓');
+    } else {
+      debugPrint('API ключ пустой или не найден');
     }
   } catch (e) {
     debugPrint('Ошибка инициализации SDK: $e');

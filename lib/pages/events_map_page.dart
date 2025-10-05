@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dgis_mobile_sdk_full/dgis.dart' as sdk;
 import '../models/marker_model.dart';
 import '../services/data_loader_service.dart';
@@ -6,6 +7,7 @@ import '../services/json_parser_service.dart';
 import '../services/map_service.dart';
 import '../widgets/date_filter_widget.dart';
 import '../widgets/control_buttons_widget.dart';
+import '../widgets/marker_card_widget.dart';
 
 class EventsMapPage extends StatefulWidget {
   final sdk.Context? sdkContext;
@@ -44,24 +46,83 @@ class _EventsMapPageState extends State<EventsMapPage> {
     if (widget.sdkContext != null) {
       _mapWidgetController.getMapAsync((map) {
         _mapObjectManager = sdk.MapObjectManager(map);
+        
+        // Устанавливаем позицию на Москву с небольшой задержкой
+        Future.delayed(const Duration(milliseconds: 500), () {
+          final moscowPosition = MapService.defaultPosition;
+          map.camera.move(
+            moscowPosition.point,
+            moscowPosition.zoom,
+            moscowPosition.tilt,
+            moscowPosition.bearing,
+          );
+          debugPrint('Карта перемещена на Москву: ${moscowPosition.point.latitude.value}, ${moscowPosition.point.longitude.value}');
+        });
+        
         debugPrint('MapObjectManager инициализирован');
       });
+    } else {
+      debugPrint('SDK Context не инициализирован!');
     }
   }
 
   void _showMarkerCard(MarkerModel marker) {
+    // Тактильная обратная связь
+    HapticFeedback.lightImpact();
+    
     setState(() {
       _selectedMarker = marker;
     });
 
-    // Показываем карточку, расширив DraggableScrollableSheet
+    // Показываем карточку на первом snap размере
     if (_cardController.isAttached) {
       _cardController.animateTo(
-        0.4,
+        0.3, // Первый snap размер
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        curve: Curves.easeOutCubic,
       );
     }
+
+    // Показываем информативное уведомление (заменяет лейбл на карте)
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              marker.isLine ? Icons.route : Icons.place,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    marker.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (marker.hasDate)
+                    Text(
+                      marker.date,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(milliseconds: 2000),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 120, left: 16, right: 16),
+        backgroundColor: marker.hasDate ? Colors.blue : Colors.orange,
+      ),
+    );
 
     debugPrint('Показываем карточку для: ${marker.title}');
   }
@@ -406,14 +467,43 @@ class _EventsMapPageState extends State<EventsMapPage> {
                             ? sdk.MapWidget(
                                 sdkContext: widget.sdkContext!,
                                 mapOptions: sdk.MapOptions(
-                                  position: MapService.defaultPosition,
+                                  position: sdk.CameraPosition(
+                                    point: sdk.GeoPoint(
+                                      latitude: sdk.Latitude(55.7539), // Москва
+                                      longitude: sdk.Longitude(37.6156),
+                                    ),
+                                    zoom: sdk.Zoom(11.0),
+                                  ),
                                 ),
                                 controller: _mapWidgetController,
                               )
-                            : const Center(
-                                child: Text(
-                                  'SDK не инициализирован',
-                                  style: TextStyle(fontSize: 18),
+                            : Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.map_outlined,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      '2GIS SDK не инициализирован',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Проверьте API ключ в assets/dgissdk.key',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
                               ),
                       ),
@@ -482,115 +572,25 @@ class _EventsMapPageState extends State<EventsMapPage> {
               ],
             ),
 
-            // Карточка маркера
+            // Карточка маркера в стиле 2GIS
             if (_selectedMarker != null)
               DraggableScrollableSheet(
                 controller: _cardController,
                 initialChildSize: 0.0,
                 minChildSize: 0.0,
-                maxChildSize: 0.6,
+                maxChildSize: 0.9,
+                snap: true,
+                snapSizes: const [0.3, 0.6, 0.9],
                 builder: (context, scrollController) {
-                  return Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Заголовок с кнопкой закрытия
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _selectedMarker!.title,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: _hideMarkerCard,
-                                icon: const Icon(Icons.close),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Контент карточки
-                        Expanded(
-                          child: SingleChildScrollView(
-                            controller: scrollController,
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (_selectedMarker!
-                                    .description.isNotEmpty) ...[
-                                  const Text(
-                                    'Описание:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(_selectedMarker!.description),
-                                  const SizedBox(height: 16),
-                                ],
-                                if (_selectedMarker!.date.isNotEmpty) ...[
-                                  const Text(
-                                    'Дата:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(_selectedMarker!.date),
-                                  const SizedBox(height: 16),
-                                ],
-                                const Text(
-                                  'Координаты:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Широта: ${_selectedMarker!.latitude.toStringAsFixed(6)}\n'
-                                  'Долгота: ${_selectedMarker!.longitude.toStringAsFixed(6)}',
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Тип объекта:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(_selectedMarker!.isPoint
-                                    ? 'Точка'
-                                    : 'Линия'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                  return NotificationListener<DraggableScrollableNotification>(
+                    onNotification: (notification) {
+                      // Обрабатываем изменения размера карточки
+                      return false;
+                    },
+                    child: MarkerCardWidget(
+                      marker: _selectedMarker!,
+                      onClose: _hideMarkerCard,
+                      scrollController: scrollController,
                     ),
                   );
                 },
