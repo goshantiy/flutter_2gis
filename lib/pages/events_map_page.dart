@@ -276,11 +276,8 @@ class _EventsMapPageState extends State<EventsMapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('2GIS Maps & Events'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           // Карта - фиксированная высота
           SizedBox(
@@ -373,6 +370,7 @@ class _EventsMapPageState extends State<EventsMapPage> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
