@@ -17,6 +17,7 @@ dependencies:
   permission_handler: ^11.3.1
   http: ^1.1.0
   file_picker: ^8.0.0
+  flutter_svg: ^2.0.9
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +29,9 @@ flutter:
   
   assets:
     - assets/dgissdk.key
+    - assets/sdk-style.2gis
+    - assets/icon1.svg
+    - assets/icon2.svg
+    - assets/icon3.svg
+    - assets/icons/
+

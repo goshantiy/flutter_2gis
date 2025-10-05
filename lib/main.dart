@@ -17,11 +17,13 @@ void main() async {
 
   // Инициализируем 2GIS SDK
   dgis.Context? sdkContext;
+
   try {
     if (apiKey != null && apiKey.isNotEmpty) {
       debugPrint('Инициализируем 2GIS SDK...');
       sdkContext = await dgis.DGis.initialize();
       debugPrint('2GIS SDK инициализирован: ✓');
+      debugPrint('Кастомные стили будут загружены автоматически из assets');
     } else {
       debugPrint('API ключ пустой или не найден');
     }

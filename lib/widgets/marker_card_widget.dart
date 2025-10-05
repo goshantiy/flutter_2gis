@@ -80,12 +80,23 @@ class MarkerCardWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      marker.isLine ? 'Перекрытие' : 'Мероприятие',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          marker.isLine ? Icons.block : Icons.event,
+                          size: 16,
+                          color: marker.isLine ? Colors.red : Colors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          marker.isLine ? 'Перекрытие движения' : 'Мероприятие',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: marker.isLine ? Colors.red[700] : Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -165,13 +176,46 @@ class MarkerCardWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Заголовок секции
-          _buildSectionTitle('О мероприятии'),
+          _buildSectionTitle(marker.isLine ? 'О перекрытии' : 'О мероприятии'),
           const SizedBox(height: 16),
           
           // Информация о продолжительности и датах
           if (marker.hasDate) ...[
             _buildDurationAndDatesRow(),
             const SizedBox(height: 20),
+          ],
+
+          // Предупреждение о перекрытии
+          if (marker.isLine) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.red[700],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'На данном участке будет ограничено или полностью перекрыто движение транспорта',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.red[800],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
 
           // Описание
@@ -463,8 +507,8 @@ class MarkerCardWidget extends StatelessWidget {
           _buildInfoRow('Широта', marker.latitude.toStringAsFixed(6)),
           _buildInfoRow('Долгота', marker.longitude.toStringAsFixed(6)),
           if (marker.isLine && marker.pointsCount != null)
-            _buildInfoRow('Точек в линии', marker.pointsCount.toString()),
-          _buildInfoRow('Тип объекта', marker.isPoint ? 'Точка' : 'Линия'),
+            _buildInfoRow('Точек в маршруте', marker.pointsCount.toString()),
+          _buildInfoRow('Тип объекта', marker.isPoint ? 'Место проведения' : 'Перекрытие дороги'),
         ],
       ),
     );
