@@ -1,5 +1,4 @@
 import 'dart:convert';
-import '../models/event_model.dart';
 import '../models/marker_model.dart';
 
 class JsonParserService {
@@ -10,12 +9,10 @@ class JsonParserService {
       final jsonData = jsonDecode(jsonString);
       
       if (jsonData.containsKey('events')) {
-        final events = (jsonData['events'] as List)
-            .map((e) => EventModel.fromJson(e))
-            .toList();
+        final events = jsonData['events'] as List;
         
-        for (final event in events) {
-          markers.addAll(_parseEvent(event));
+        for (final eventData in events) {
+          markers.addAll(_parseEvent(eventData));
         }
       } else if (jsonData['type'] == 'FeatureCollection') {
         markers.addAll(_parseGeoJson(jsonData));
@@ -27,63 +24,68 @@ class JsonParserService {
     return markers;
   }
 
-  static List<MarkerModel> _parseEvent(EventModel event) {
+  static List<MarkerModel> _parseEvent(Map<String, dynamic> eventData) {
     final List<MarkerModel> markers = [];
-    final dateRange = event.date?.displayString ?? '';
+    
+    final name = eventData['name'] ?? 'Событие';
+    final description = eventData['description'] ?? '';
+    
+    // Обрабатываем дату
+    String dateRange = '';
+    if (eventData['date'] != null) {
+      final dateData = eventData['date'];
+      if (dateData is Map) {
+        final start = dateData['start'] ?? '';
+        final end = dateData['end'] ?? '';
+        if (start.isNotEmpty && end.isNotEmpty) {
+          dateRange = '$start - $end';
+        } else if (start.isNotEmpty) {
+          dateRange = start;
+        }
+      } else if (dateData is String) {
+        dateRange = dateData;
+      }
+    }
     
     // Обрабатываем POI (точки интереса)
-    for (int i = 0; i < event.poi.length; i++) {
-      final poi = event.poi[i];
-      if (poi.length >= 2) {
-        markers.add(MarkerModel(
-          latitude: poi[1],
-          longitude: poi[0],
-          title: event.poi.length > 1 ? '${event.name} (POI ${i + 1})' : event.name,
-          description: event.description,
-          date: dateRange,
-          type: MarkerType.point,
-        ));
+    if (eventData['POI'] != null) {
+      final poiList = eventData['POI'] as List;
+      for (int i = 0; i < poiList.length; i++) {
+        final poi = poiList[i] as List;
+        if (poi.length >= 2) {
+          markers.add(MarkerModel(
+            latitude: poi[1].toDouble(),
+            longitude: poi[0].toDouble(),
+            title: poiList.length > 1 ? '$name (POI ${i + 1})' : name,
+            description: description,
+            date: dateRange,
+            type: MarkerType.point,
+          ));
+        }
       }
     }
     
     // Обрабатываем closures (перекрытия)
-    for (int i = 0; i < event.closures.length; i++) {
-      final closure = event.closures[i];
-      if (closure.type == 'LineString' && closure.coordinates.isNotEmpty) {
-        final firstPoint = closure.coordinates.first;
-        markers.add(MarkerModel(
-          latitude: firstPoint[1],
-          longitude: firstPoint[0],
-          title: event.closures.length > 1 
-              ? '${event.name} (Перекрытие ${i + 1})' 
-              : '${event.name} (Перекрытие)',
-          description: 'Перекрытие дороги на время мероприятия',
-          date: dateRange,
-          type: MarkerType.line,
-          pointsCount: closure.coordinates.length,
-          lineCoordinates: closure.coordinates.map<List<double>>((coord) => 
-              [coord[0].toDouble(), coord[1].toDouble()]).toList(),
-        ));
-      }
-    }
-    
-    // Обрабатываем days (дни события)
-    if (event.days != null) {
-      for (int dayIndex = 0; dayIndex < event.days!.length; dayIndex++) {
-        final day = event.days![dayIndex];
-        final dayDateRange = day.date?.displayString ?? '';
-        
-        // POI для конкретного дня
-        for (int i = 0; i < day.poi.length; i++) {
-          final poi = day.poi[i];
-          if (poi.length >= 2) {
+    if (eventData['closures'] != null) {
+      final closuresList = eventData['closures'] as List;
+      for (int i = 0; i < closuresList.length; i++) {
+        final closure = closuresList[i] as Map<String, dynamic>;
+        if (closure['type'] == 'LineString' && closure['coordinates'] != null) {
+          final coordinates = closure['coordinates'] as List;
+          if (coordinates.isNotEmpty) {
+            final firstPoint = coordinates.first as List;
             markers.add(MarkerModel(
-              latitude: poi[1],
-              longitude: poi[0],
-              title: '${event.name} (День ${dayIndex + 1})',
-              description: day.description,
-              date: dayDateRange,
-              type: MarkerType.point,
+              latitude: firstPoint[1].toDouble(),
+              longitude: firstPoint[0].toDouble(),
+              title: closuresList.length > 1 
+                  ? '$name (Перекрытие ${i + 1})' 
+                  : '$name (Перекрытие)',
+              description: 'Перекрытие дороги на время мероприятия',
+              date: dateRange,
+              type: MarkerType.line,
+              pointsCount: coordinates.length,
+              lineCoordinates: coordinates.map<List<double>>((coord) => 
+                  [coord[0].toDouble(), coord[1].toDouble()]).toList(),
             ));
           }
         }

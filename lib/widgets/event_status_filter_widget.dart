@@ -15,25 +15,33 @@ class EventStatusFilterWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           'Фильтр по статусу:',
-          style: Theme.of(context).textTheme.titleSmall,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontSize: 14,
+              ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Wrap(
-          spacing: 8,
+          spacing: 6,
+          runSpacing: 4,
           children: EventStatus.values.map((status) {
             return FilterChip(
-              label: Text(status.displayName),
+              label: Text(
+                status.displayName,
+                style: const TextStyle(fontSize: 12),
+              ),
               selected: selectedStatus == status,
               onSelected: (selected) {
                 if (selected) onStatusSelected(status);
               },
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
             );
           }).toList(),
         ),
-        const SizedBox(height: 16),
       ],
     );
   }
