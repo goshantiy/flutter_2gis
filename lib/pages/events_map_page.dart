@@ -27,6 +27,9 @@ class _EventsMapPageState extends State<EventsMapPage> {
   Set<String> _availableDates = {};
   String? _selectedDate;
   
+  // Для карточки маркера
+  MarkerModel? _selectedMarker;
+  final DraggableScrollableController _cardController = DraggableScrollableController();
 
   final _mapWidgetController = sdk.MapWidgetController();
   sdk.MapObjectManager? _mapObjectManager;
@@ -45,6 +48,100 @@ class _EventsMapPageState extends State<EventsMapPage> {
         debugPrint('MapObjectManager инициализирован');
       });
     }
+  }
+
+  void _showMarkerCard(MarkerModel marker) {
+    setState(() {
+      _selectedMarker = marker;
+    });
+    
+    // Показываем карточку, расширив DraggableScrollableSheet
+    if (_cardController.isAttached) {
+      _cardController.animateTo(
+        0.4,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+    
+    debugPrint('Показываем карточку для: ${marker.title}');
+  }
+
+  void _hideMarkerCard() {
+    if (_cardController.isAttached) {
+      _cardController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+    
+    Future.delayed(const Duration(milliseconds: 300), () {
+      setState(() {
+        _selectedMarker = null;
+      });
+    });
+  }
+
+  void _handleMapTap(TapDownDetails details) {
+    final tapPosition = details.localPosition;
+    debugPrint('Тап по карте в позиции: $tapPosition');
+    
+    // Простой подход: проверяем расстояние до каждого маркера на экране
+    _mapWidgetController.getMapAsync((map) {
+      try {
+        final projection = map.camera.projection;
+        
+        // Конвертируем тап в координаты карты
+        final geoPoint = projection.screenToMap(sdk.ScreenPoint(
+          x: tapPosition.dx, 
+          y: tapPosition.dy
+        ));
+        
+        if (geoPoint != null) {
+          debugPrint('Координаты тапа: ${geoPoint.latitude.value}, ${geoPoint.longitude.value}');
+          
+          // Ищем ближайший маркер
+          _findNearestMarker(geoPoint);
+        } else {
+          debugPrint('Не удалось определить координаты тапа');
+        }
+      } catch (e) {
+        debugPrint('Ошибка обработки тапа: $e');
+      }
+    });
+  }
+
+  void _findNearestMarker(sdk.GeoPoint tapPoint) {
+    const double threshold = 0.001; // Порог расстояния для определения "близко"
+    MarkerModel? nearestMarker;
+    double minDistance = double.infinity;
+    
+    for (final marker in _markers) {
+      final distance = _calculateDistance(
+        tapPoint.latitude.value,
+        tapPoint.longitude.value,
+        marker.latitude,
+        marker.longitude,
+      );
+      
+      if (distance < threshold && distance < minDistance) {
+        minDistance = distance;
+        nearestMarker = marker;
+      }
+    }
+    
+    if (nearestMarker != null) {
+      debugPrint('Найден ближайший маркер: ${nearestMarker.title}');
+      _showMarkerCard(nearestMarker);
+    } else {
+      debugPrint('Маркер не найден рядом с точкой тапа');
+      _hideMarkerCard();
+    }
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    return ((lat1 - lat2) * (lat1 - lat2) + (lon1 - lon2) * (lon1 - lon2));
   }
 
   void _loadSampleData() {
@@ -277,51 +374,57 @@ class _EventsMapPageState extends State<EventsMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-        children: [
-          // Карта - фиксированная высота
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: Stack(
+        child: Stack(
+          children: [
+            // Основной контент
+            Column(
               children: [
-                widget.sdkContext != null
-                    ? sdk.MapWidget(
-                        sdkContext: widget.sdkContext!,
-                        mapOptions: sdk.MapOptions(
-                          position: MapService.defaultPosition,
+                // Карта - фиксированная высота
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.4,
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTapDown: (details) => _handleMapTap(details),
+                        child: widget.sdkContext != null
+                            ? sdk.MapWidget(
+                                sdkContext: widget.sdkContext!,
+                                mapOptions: sdk.MapOptions(
+                                  position: MapService.defaultPosition,
+                                ),
+                                controller: _mapWidgetController,
+                              )
+                            : const Center(
+                                child: Text(
+                                  'SDK не инициализирован',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              ),
+                      ),
+                      // Показываем информацию о маркерах
+                      if (_markers.isNotEmpty)
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _selectedDate != null 
+                                  ? 'Объектов на карте: ${_markers.length} (фильтр: $_selectedDate)'
+                                  : 'Объектов на карте: ${_markers.length}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
-                        controller: _mapWidgetController,
-                      )
-                    : const Center(
-                        child: Text(
-                          'SDK не инициализирован',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
-                // Показываем информацию о маркерах
-                if (_markers.isNotEmpty)
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _selectedDate != null 
-                            ? 'Объектов на карте: ${_markers.length} (фильтр: $_selectedDate)'
-                            : 'Объектов на карте: ${_markers.length}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    ],
                   ),
-              ],
-            ),
-          ),
+                ),
 
-          // Панель управления - прокручиваемая
+                // Панель управления - прокручиваемая
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -369,7 +472,123 @@ class _EventsMapPageState extends State<EventsMapPage> {
               ),
             ),
           ),
-        ],
+            ],
+          ),
+            
+            // Карточка маркера
+            if (_selectedMarker != null)
+              DraggableScrollableSheet(
+                controller: _cardController,
+                initialChildSize: 0.0,
+                minChildSize: 0.0,
+                maxChildSize: 0.6,
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10,
+                          offset: Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Заголовок с кнопкой закрытия
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _selectedMarker!.title,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _hideMarkerCard,
+                                icon: const Icon(Icons.close),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Контент карточки
+                        Expanded(
+                          child: SingleChildScrollView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (_selectedMarker!.description.isNotEmpty) ...[
+                                  const Text(
+                                    'Описание:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(_selectedMarker!.description),
+                                  const SizedBox(height: 16),
+                                ],
+                                
+                                if (_selectedMarker!.date.isNotEmpty) ...[
+                                  const Text(
+                                    'Дата:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(_selectedMarker!.date),
+                                  const SizedBox(height: 16),
+                                ],
+                                
+                                const Text(
+                                  'Координаты:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Широта: ${_selectedMarker!.latitude.toStringAsFixed(6)}\n'
+                                  'Долгота: ${_selectedMarker!.longitude.toStringAsFixed(6)}',
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                const Text(
+                                  'Тип объекта:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(_selectedMarker!.isPoint ? 'Точка' : 'Линия'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
       ),
     );
