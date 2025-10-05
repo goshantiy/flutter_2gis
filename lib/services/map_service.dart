@@ -20,6 +20,7 @@ class MapService {
     try {
       final markerColor = ColorUtils.getMarkerColor(marker.hasDate);
 
+      // Создаем более заметный маркер с большим радиусом и обводкой
       final circle = sdk.Circle(
         sdk.CircleOptions(
           position: sdk.GeoPoint(
@@ -30,7 +31,7 @@ class MapService {
           color: sdk.Color(markerColor),
           strokeColor: sdk.Color(AppConstants.markerStrokeColor),
           strokeWidth: sdk.LogicalPixel(AppConstants.strokeWidth),
-          zIndex: sdk.ZIndex(1),
+          zIndex: sdk.ZIndex(2), // Повышаем z-index для лучшего клика
           userData: marker.toMap(),
         ),
       );
@@ -44,11 +45,21 @@ class MapService {
   static Future<void> addLineToMap(
     sdk.MapObjectManager mapObjectManager,
     MarkerModel lineMarker,
-    List<sdk.GeoPoint> points,
   ) async {
-    if (points.isEmpty) return;
+    if (lineMarker.lineCoordinates == null || lineMarker.lineCoordinates!.isEmpty) {
+      debugPrint('Нет координат для линии: ${lineMarker.title}');
+      return;
+    }
 
     try {
+      // Конвертируем координаты в GeoPoint
+      final points = lineMarker.lineCoordinates!.map((coord) => 
+        sdk.GeoPoint(
+          latitude: sdk.Latitude(coord[1]), // lat
+          longitude: sdk.Longitude(coord[0]), // lon
+        )
+      ).toList();
+
       final lineColor = ColorUtils.getLineColor(lineMarker.hasDate, lineMarker.title);
 
       final polyline = sdk.Polyline(
@@ -62,6 +73,7 @@ class MapService {
       );
 
       mapObjectManager.addObject(polyline);
+      debugPrint('Линия добавлена: ${lineMarker.title} (${points.length} точек)');
     } catch (e) {
       debugPrint('Ошибка добавления линии: $e');
     }

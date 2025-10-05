@@ -61,6 +61,8 @@ class JsonParserService {
           date: dateRange,
           type: MarkerType.line,
           pointsCount: closure.coordinates.length,
+          lineCoordinates: closure.coordinates.map<List<double>>((coord) => 
+              [coord[0].toDouble(), coord[1].toDouble()]).toList(),
         ));
       }
     }
@@ -130,6 +132,8 @@ class JsonParserService {
             date: date,
             type: MarkerType.line,
             pointsCount: coordinates.length,
+            lineCoordinates: coordinates.map<List<double>>((coord) => 
+                [coord[0].toDouble(), coord[1].toDouble()]).toList(),
           ));
         }
       }

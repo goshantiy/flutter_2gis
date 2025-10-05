@@ -256,6 +256,10 @@ class _EventsMapPageState extends State<EventsMapPage> {
         Future.delayed(const Duration(milliseconds: 50), () {
           MapService.addMarkerToMap(_mapObjectManager!, marker);
         });
+      } else if (marker.isLine) {
+        Future.delayed(const Duration(milliseconds: 50), () {
+          MapService.addLineToMap(_mapObjectManager!, marker);
+        });
       }
     }
   }
