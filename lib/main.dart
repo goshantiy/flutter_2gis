@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dgis_mobile_sdk_full/dgis.dart' as dgis;
-import 'pages/geojson_points.dart';
+import 'pages/events_map_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: GeoJsonPointsPage(sdkContext: sdkContext),
+      home: EventsMapPage(sdkContext: sdkContext),
     );
   }
 }
